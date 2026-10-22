@@ -2,7 +2,6 @@ import glob
 import os
 import tempfile
 import mlflow
-import logging
 from bl_models_train import BLPayoutModelsFit
 from parse_logs import parse_metrics
 
@@ -37,5 +36,3 @@ with tempfile.TemporaryDirectory() as output_dir:
         mlflow.log_metrics(metrics)
         for day, day_metrics in daily.items():
             mlflow.log_metrics(day_metrics, step=day)
-
-    logging.shutdown()
