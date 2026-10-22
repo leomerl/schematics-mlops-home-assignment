@@ -11,6 +11,16 @@ variables:
   input_file:
     default: bl_full_data.csv
 
+workspace:
+  artifact_path: /Volumes/${var.catalog}/${var.schema}/artifacts/${bundle.target}/${workspace.current_user.short_name}
+
+artifacts:
+  bl_ranker_wheel:
+    type: whl
+    path: .
+    build: rm -rf dist build && grep -v -- --extra-index-url requirements.txt > deps.txt && python3 -m pip wheel --no-deps -q -w dist .
+    dynamic_version: true
+
 sync:
   exclude:
     - Dockerfile
@@ -47,8 +57,9 @@ resources:
       tasks:
         - task_key: train
           environment_key: training
-          spark_python_task:
-            python_file: ./databricks_job.py
+          python_wheel_task:
+            package_name: bl_ranker
+            entry_point: bl-train
             parameters:
               - --mode
               - "{{job.parameters.mode}}"
@@ -65,7 +76,8 @@ resources:
           spec:
             environment_version: "4"
             dependencies:
-              - -r ${workspace.file_path}/requirements.txt
+              - --extra-index-url https://download.pytorch.org/whl/cpu
+              - ./dist/*.whl
 
 targets:
   dev:
