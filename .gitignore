@@ -21,6 +21,12 @@ mlruns/
 mlartifacts/
 mlflow.db
 
+# Databricks bundle local state and wheel build output
+.databricks/
+dist/
+build/
+deps.txt
+
 # Load test data (sampled from the CSV, contains PII) and output
 **/tests/load/users.json
 **/tests/load/results/
