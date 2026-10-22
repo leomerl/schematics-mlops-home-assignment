@@ -37,6 +37,7 @@ scheduler/      crontab for the Docker weekly retrain
 tests/load/     k6 load test, user sampler, runner script
 databricks.yml  Databricks Asset Bundle (experiment, registered model, scheduled job)
 databricks_job.py  adapter: Databricks job parameters → the same training pipeline
+pyproject.toml  packages the code as a wheel for the Databricks job
 rollback.py     moves the @champion alias to an earlier model version
 Dockerfile, docker-compose.yml, requirements.txt, .env.example
 ```
@@ -182,6 +183,8 @@ Above about 1 req/s, latency is limited by the hosted TabPFN API (60 predictions
 
 Training and the model registry can also run on Databricks. Serving stays in Docker. The same training code runs in both places, and only the configuration changes. [databricks_job.py](08-final/databricks_job.py) maps job parameters and a secret scope to the environment variables the pipeline already reads.
 
+On every deploy the bundle builds the code into a wheel ([pyproject.toml](08-final/pyproject.toml)) and uploads it to the `workspace.bl.artifacts` volume, and the serverless job installs it like any other package. Dependencies still come from `requirements.txt`. The job doesn't load code from the workspace file system, because serverless failed to read bundle files there (`[Errno 5] Input/output error`).
+
 One-time workspace setup:
 
 ```bash
@@ -190,6 +193,7 @@ export DATABRICKS_CONFIG_PROFILE=bl
 
 databricks schemas create bl workspace
 databricks volumes create workspace bl data MANAGED
+databricks volumes create workspace bl artifacts MANAGED
 databricks fs cp bl_full_data.csv dbfs:/Volumes/workspace/bl/data/
 databricks secrets create-scope bl
 databricks secrets put-secret bl TABPFN_TOKEN
