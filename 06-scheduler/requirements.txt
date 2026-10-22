@@ -1,0 +1,25 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Models
+catboost==1.2.10
+tabpfn-client==0.6.1
+tabpfn==9.1.0
+torch==2.14.1+cpu
+scikit-learn==1.9.0
+names-dataset==3.3.1
+
+# Data
+pandas==2.3.3
+numpy==2.5.4
+joblib==1.6.0
+
+# MLOps
+mlflow==3.17.2
+
+# Config
+python-dotenv==1.2.4
+
+# Serving
+fastapi==0.159.1
+uvicorn==0.54.0
+pydantic==2.13.4
