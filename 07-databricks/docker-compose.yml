@@ -1,0 +1,100 @@
+x-app: &app
+  image: bl-ranker:latest
+  env_file: .env
+  depends_on:
+    mlflow:
+      condition: service_healthy
+
+services:
+  mlflow:
+    build:
+      context: .
+      target: app
+    image: bl-ranker:latest
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port ${MLFLOW_PORT:-5000}
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts mlflow:${MLFLOW_PORT:-5000},localhost:${MLFLOW_PORT:-5000},127.0.0.1:${MLFLOW_PORT:-5000}
+    ports:
+      - "${MLFLOW_PORT:-5000}:${MLFLOW_PORT:-5000}"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${MLFLOW_PORT:-5000}/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  trainer:
+    <<: *app
+    profiles: ["train"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+      INPUT_PATH: /data/
+    volumes:
+      - ./bl_full_data.csv:/data/bl_full_data.csv:ro
+    entrypoint: ["python", "-m", "training.train_pipeline"]
+    command: ["--mode", "production"]
+
+  api:
+    <<: *app
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+      WEB_CONCURRENCY: ${API_WORKERS:-2}
+    command: uvicorn serving.app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  scheduler:
+    <<: *app
+    build:
+      context: .
+      target: scheduler
+    image: bl-ranker-scheduler:latest
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+      INPUT_PATH: /data/
+      TZ: Asia/Jerusalem
+    volumes:
+      - ./bl_full_data.csv:/data/bl_full_data.csv:ro
+    restart: unless-stopped
+
+  
+  loadtest-data:
+    image: bl-ranker:latest
+    profiles: ["loadtest"]
+    volumes:
+      - ./bl_full_data.csv:/data/bl_full_data.csv:ro
+      - ./tests/load:/tests
+    entrypoint: ["python", "/tests/make_users.py", "/data/bl_full_data.csv", "/tests/users.json"]
+
+  loadtest:
+    image: grafana/k6:0.57.0
+    profiles: ["loadtest"]
+    environment:
+      BASE_URL: http://api:8000
+      RATES: ${RATES:-0.5,1,2,3}
+      STAGE_SECONDS: ${STAGE_SECONDS:-60}
+    volumes:
+      - ./tests/load:/scripts:ro
+      - ./tests/load/results:/scripts/results
+    working_dir: /scripts
+    command: ["run", "load_test.ts"]
+    depends_on:
+      api:
+        condition: service_healthy
+      loadtest-data:
+        condition: service_completed_successfully
+
+
+volumes:
+  mlflow-data:
