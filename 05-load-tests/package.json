@@ -1,0 +1,23 @@
+{
+  "name": "schematics-mlops-home-assignment",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leomerl/schematics-mlops-home-assignment.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leomerl/schematics-mlops-home-assignment/issues"
+  },
+  "homepage": "https://github.com/leomerl/schematics-mlops-home-assignment#readme",
+  "devDependencies": {
+    "@types/k6": "^2.3.0"
+  }
+}

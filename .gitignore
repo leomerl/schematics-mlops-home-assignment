@@ -21,8 +21,12 @@ mlruns/
 mlartifacts/
 mlflow.db
 
-# Load test output
-loadtest/results/
+# Load test data (sampled from the CSV, contains PII) and output
+**/tests/load/users.json
+**/tests/load/results/
+
+# Node (k6 type definitions)
+node_modules/
 
 # Assignment briefing (not part of the deliverable)
 *.docx
