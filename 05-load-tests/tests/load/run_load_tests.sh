@@ -17,7 +17,7 @@ pushd "$(dirname "$0")" > /dev/null
 trap 'popd > /dev/null' EXIT
 
 PROJECT_ROOT="${PROJECT_ROOT:-$(cd ../.. && pwd)}"
-SUMMARY_FILE="${SUMMARY_FILE:-results/summary.json}"
+SUMMARY_FILE="${SUMMARY_FILE:-results/summary-$(date +%Y%m%d-%H%M%S).json}"
 mkdir -p "$(dirname "$SUMMARY_FILE")"
 
 run_docker() {

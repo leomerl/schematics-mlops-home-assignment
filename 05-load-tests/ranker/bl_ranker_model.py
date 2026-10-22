@@ -8,7 +8,12 @@ from ranker.prod_artifacts import ArtifactKeys
 from researcher.bl_exp_payout_predictor import BLPayoutModelsPredict
 import researcher.bl_exp_payout_predictor as predictor_module
 
-NO_RESULT = {"expected_payout": 0, "prob_lead": 0} 
+NO_RESULT = {"expected_payout": 0, "prob_lead": 0}
+SURVEY_COLUMNS = [
+    "credit_score", "industry", "loan_amount", "loan_reason",
+    "monthly_revenue", "time_in_business", "device_type", "business_type",
+]
+MIN_SURVEY_ANSWERS = 5
 
 class BLRankerModel(PythonModel):
     def load_context(self, context: PythonModelContext) -> None:
@@ -21,6 +26,9 @@ class BLRankerModel(PythonModel):
 
     def predict(self, context: PythonModelContext, model_input: pd.DataFrame, params: dict[str, Any] | None = None) -> Any:
         user_data = model_input.iloc[0].to_dict()
+        answered = sum(pd.notna(user_data.get(column)) for column in SURVEY_COLUMNS)
+        if answered < MIN_SURVEY_ANSWERS:
+            return NO_RESULT
         with self.lock:
             predictor_module.user_data = user_data
             bl_data = self.predictor.bl_preprocessing()
