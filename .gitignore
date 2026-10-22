@@ -1,0 +1,43 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Data (PII: names, phones, addresses) — download from the Drive link in README
+*.csv
+data/
+
+# Model artifacts and logs (versioned in MLflow, not git)
+predictors/
+artifacts/
+*.cbm
+*.joblib
+*.log
+logs/
+catboost_info/
+
+# MLflow local tracking/registry
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Load test output
+loadtest/results/
+
+# Assignment briefing (not part of the deliverable)
+*.docx
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+
+# Tooling / OS / editor
+.remember/
+.vscode/
+.idea/
+.DS_Store
