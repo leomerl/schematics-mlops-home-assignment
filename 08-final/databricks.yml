@@ -1,0 +1,83 @@
+bundle:
+  name: bl-ranker
+
+variables:
+  catalog:
+    default: workspace
+  schema:
+    default: bl
+  data_volume:
+    default: data
+  input_file:
+    default: bl_full_data.csv
+
+sync:
+  exclude:
+    - Dockerfile
+    - .dockerignore
+    - docker-compose.yml
+    - package.json
+    - package-lock.json
+    - .env.example
+    - scheduler/
+    - tests/
+
+
+resources:
+  experiments:
+    bl_payout_ranking:
+      name: /Users/${workspace.current_user.userName}/bl_payout_ranking
+
+  registered_models:
+    bl_ranker:
+      catalog_name: ${var.catalog}
+      schema_name: ${var.schema}
+      name: bl_ranker
+
+  jobs:
+    bl_training:
+      name: bl-training
+      max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: "0 0 5 ? * SUN"
+        timezone_id: Asia/Jerusalem
+      parameters:
+        - name: mode
+          default: production
+      tasks:
+        - task_key: train
+          environment_key: training
+          spark_python_task:
+            python_file: ./databricks_job.py
+            parameters:
+              - --mode
+              - "{{job.parameters.mode}}"
+              - --input-path
+              - /Volumes/${var.catalog}/${var.schema}/${var.data_volume}
+              - --input-file
+              - ${var.input_file}
+              - --experiment-name
+              - ${resources.experiments.bl_payout_ranking.name}
+              - --model-name
+              - ${var.catalog}.${var.schema}.${resources.registered_models.bl_ranker.name}
+      environments:
+        - environment_key: training
+          spec:
+            environment_version: "4"
+            dependencies:
+              - -r ${workspace.file_path}/requirements.txt
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-8e44efb1-cad9.cloud.databricks.com
+
+  prod:
+    mode: production
+    workspace:
+      host: https://dbc-8e44efb1-cad9.cloud.databricks.com
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      user_name: ${workspace.current_user.userName}
