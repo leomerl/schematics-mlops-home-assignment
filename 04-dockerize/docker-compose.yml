@@ -1,0 +1,50 @@
+x-app: &app
+  image: bl-ranker:latest
+  env_file: .env
+  depends_on:
+    mlflow:
+      condition: service_healthy
+
+services:
+  mlflow:
+    build: .
+    image: bl-ranker:latest
+    command: >
+      mlflow server
+      --host 0.0.0.0 --port ${MLFLOW_PORT:-5000}
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+      --allowed-hosts mlflow:${MLFLOW_PORT:-5000},localhost:${MLFLOW_PORT:-5000},127.0.0.1:${MLFLOW_PORT:-5000}
+    ports:
+      - "${MLFLOW_PORT:-5000}:${MLFLOW_PORT:-5000}"
+    volumes:
+      - mlflow-data:/mlflow
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:${MLFLOW_PORT:-5000}/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  trainer:
+    <<: *app
+    profiles: ["train"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+      INPUT_PATH: /data/
+    volumes:
+      - ./bl_full_data.csv:/data/bl_full_data.csv:ro
+    entrypoint: ["python", "-m", "training.train_pipeline"]
+    command: ["--mode", "production"]
+
+  api:
+    <<: *app
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:${MLFLOW_PORT:-5000}
+      WEB_CONCURRENCY: ${API_WORKERS:-2}
+    command: uvicorn serving.app:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+    restart: on-failure
+
+volumes:
+  mlflow-data:
