@@ -8,3 +8,15 @@ mlruns
 **/__pycache__
 **/*.pyc
 .venv
+.git
+.gitignore
+.remember
+.idea
+.vscode
+**/*.log
+**/.pytest_cache
+**/node_modules
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore
