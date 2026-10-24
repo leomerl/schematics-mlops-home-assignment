@@ -1,0 +1,76 @@
+{{- if and .Values.mlflow.enabled (not .Values.databricks.enabled) }}
+{{- $port := .Values.mlflow.port }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.mlflow.storage }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  labels:
+    {{- include "bl-ranker.labels" (dict "name" "mlflow") | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+  template:
+    metadata:
+      labels:
+        {{- include "bl-ranker.labels" (dict "name" "mlflow") | nindent 8 }}
+    spec:
+      {{- include "bl-ranker.podSecurity" . | nindent 6 }}
+      containers:
+        - name: mlflow
+          {{- include "bl-ranker.image" . | nindent 10 }}
+          command:
+            - mlflow
+            - server
+            - --host=0.0.0.0
+            - --port={{ $port }}
+            - --backend-store-uri=sqlite:////mlflow/mlflow.db
+            - --artifacts-destination=/mlflow/artifacts
+            - --allowed-hosts=mlflow:{{ $port }},mlflow.{{ .Release.Namespace }}:{{ $port }},localhost:{{ $port }},127.0.0.1:{{ $port }}
+          ports:
+            - name: http
+              containerPort: {{ $port }}
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.mlflow.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /mlflow
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+spec:
+  selector:
+    app.kubernetes.io/name: mlflow
+  ports:
+    - name: http
+      port: {{ $port }}
+      targetPort: http
+{{- end }}

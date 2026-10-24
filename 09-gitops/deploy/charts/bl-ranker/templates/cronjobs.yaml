@@ -1,0 +1,103 @@
+{{- if and .Values.training.enabled (not .Values.databricks.enabled) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: training-data
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: {{ .Values.training.dataStorage }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: training
+  labels:
+    {{- include "bl-ranker.labels" (dict "name" "training") | nindent 4 }}
+spec:
+  schedule: {{ .Values.training.schedule | quote }}
+  timeZone: {{ .Values.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        metadata:
+          labels:
+            {{- include "bl-ranker.labels" (dict "name" "training") | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          {{- include "bl-ranker.podSecurity" . | nindent 10 }}
+          containers:
+            - name: training
+              {{- include "bl-ranker.image" . | nindent 14 }}
+              command: [python, -m, training.train_pipeline, --mode, production]
+              env:
+                {{- include "bl-ranker.registryEnv" . | nindent 16 }}
+                {{- include "bl-ranker.gitopsEnv" . | nindent 16 }}
+                {{- include "bl-ranker.secretEnv" (dict "root" . "key" "TABPFN_TOKEN") | nindent 16 }}
+                - name: MLFLOW_EXPERIMENT_NAME
+                  value: {{ .Values.registry.experimentName | quote }}
+                - name: INPUT_PATH
+                  value: /data/
+                - name: INPUT_FILE
+                  value: {{ .Values.training.inputFile | quote }}
+              resources:
+                {{- toYaml .Values.training.resources | nindent 16 }}
+              volumeMounts:
+                - name: data
+                  mountPath: /data
+                  readOnly: true
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: training-data
+---
+{{- end }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: shadow-gate
+  labels:
+    {{- include "bl-ranker.labels" (dict "name" "shadow-gate") | nindent 4 }}
+spec:
+  schedule: {{ .Values.shadowGate.schedule | quote }}
+  timeZone: {{ .Values.timeZone }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            {{- include "bl-ranker.labels" (dict "name" "shadow-gate") | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          {{- include "bl-ranker.podSecurity" . | nindent 10 }}
+          containers:
+            - name: shadow-gate
+              {{- include "bl-ranker.image" . | nindent 14 }}
+              command: [python, -m, gates.shadow_gate]
+              env:
+                {{- include "bl-ranker.registryEnv" . | nindent 16 }}
+                {{- include "bl-ranker.gitopsEnv" . | nindent 16 }}
+                - name: SHADOW_LOG_PATH
+                  value: /shadow/shadow_log.jsonl
+                - name: SHADOW_MIN_HOURS
+                  value: {{ .Values.shadow.minHours | quote }}
+                - name: SHADOW_MIN_SAMPLES
+                  value: {{ .Values.shadow.minSamples | quote }}
+              volumeMounts:
+                - name: shadow
+                  mountPath: /shadow
+          volumes:
+            - name: shadow
+              persistentVolumeClaim:
+                claimName: shadow-data

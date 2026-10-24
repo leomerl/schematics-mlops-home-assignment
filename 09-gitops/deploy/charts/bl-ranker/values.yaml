@@ -1,0 +1,65 @@
+image:
+  repository: bl-ranker
+  tag: local
+  pullPolicy: IfNotPresent
+
+secretName: bl-ranker-secrets
+timeZone: Asia/Jerusalem
+podUser: 1000
+
+registry:
+  modelName: bl_ranker
+  experimentName: bl_payout_ranking
+
+databricks:
+  enabled: false
+  host: ""
+  modelName: workspace.bl.bl_ranker
+
+mlflow:
+  enabled: true
+  port: 5000
+  storage: 5Gi
+  resources:
+    requests: {cpu: 100m, memory: 512Mi}
+    limits: {memory: 1Gi}
+
+serving:
+  port: 8000
+  champion:
+    name: api
+    alias: champion
+    replicas: 2
+  challenger:
+    name: api-shadow
+    alias: challenger
+    replicas: 1
+  shadowSampleRate: "0.05"
+  terminationGracePeriodSeconds: 90
+  preStopSleepSeconds: 10
+  startupTimeoutSeconds: 180
+  resources:
+    requests: {cpu: 250m, memory: 768Mi}
+    limits: {memory: 2Gi}
+
+shadow:
+  storage: 1Gi
+  minHours: "20"
+  minSamples: "30"
+
+training:
+  enabled: true
+  schedule: "0 5 * * 0"
+  dataStorage: 1Gi
+  inputFile: bl_full_data.csv
+  resources:
+    requests: {cpu: "1", memory: 1Gi}
+    limits: {memory: 4Gi}
+
+shadowGate:
+  schedule: "0 6 * * *"
+
+gitops:
+  repoUrl: https://github.com/leomerl/schematics-mlops-home-assignment.git
+  branch: main
+  modelsFile: 09-gitops/deploy/charts/bl-ranker/models.yaml

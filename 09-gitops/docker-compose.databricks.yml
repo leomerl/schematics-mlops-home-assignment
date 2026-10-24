@@ -1,0 +1,15 @@
+x-databricks: &databricks
+  MLFLOW_TRACKING_URI: databricks
+  MLFLOW_REGISTRY_URI: databricks-uc
+  REGISTERED_MODEL_NAME: ${REGISTERED_MODEL_NAME:-workspace.bl.bl_ranker}
+  DATABRICKS_HOST: ${DATABRICKS_HOST:?set DATABRICKS_HOST in .env}
+  DATABRICKS_TOKEN: ${DATABRICKS_TOKEN:?set DATABRICKS_TOKEN in .env}
+
+services:
+  api:
+    depends_on: !reset {}
+    environment: *databricks
+
+  api-shadow:
+    depends_on: !reset {}
+    environment: *databricks

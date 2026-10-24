@@ -51,3 +51,9 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars

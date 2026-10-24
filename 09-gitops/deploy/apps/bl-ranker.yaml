@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bl-ranker
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/leomerl/schematics-mlops-home-assignment.git
+    targetRevision: main
+    path: 09-gitops/deploy/charts/bl-ranker
+    helm:
+      valueFiles:
+        - values.yaml
+        - models.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bl-ranker
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

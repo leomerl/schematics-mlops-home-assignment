@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bl-ranker
+description: BL payout ranker - champion and shadow serving, MLflow registry, scheduled training and shadow gate
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
